@@ -1,0 +1,21 @@
+{
+  "files": {
+    "main.css": "/CryptoDragonPages/static/css/main.f349675e.css",
+    "main.js": "/CryptoDragonPages/static/js/main.c3ceadff.js",
+    "static/js/435.154e1808.chunk.js": "/CryptoDragonPages/static/js/435.154e1808.chunk.js",
+    "static/js/774.e95ddf23.chunk.js": "/CryptoDragonPages/static/js/774.e95ddf23.chunk.js",
+    "static/js/787.758fe0c4.chunk.js": "/CryptoDragonPages/static/js/787.758fe0c4.chunk.js",
+    "static/js/459.2b4e8e79.chunk.js": "/CryptoDragonPages/static/js/459.2b4e8e79.chunk.js",
+    "index.html": "/CryptoDragonPages/index.html",
+    "main.f349675e.css.map": "/CryptoDragonPages/static/css/main.f349675e.css.map",
+    "main.c3ceadff.js.map": "/CryptoDragonPages/static/js/main.c3ceadff.js.map",
+    "435.154e1808.chunk.js.map": "/CryptoDragonPages/static/js/435.154e1808.chunk.js.map",
+    "774.e95ddf23.chunk.js.map": "/CryptoDragonPages/static/js/774.e95ddf23.chunk.js.map",
+    "787.758fe0c4.chunk.js.map": "/CryptoDragonPages/static/js/787.758fe0c4.chunk.js.map",
+    "459.2b4e8e79.chunk.js.map": "/CryptoDragonPages/static/js/459.2b4e8e79.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f349675e.css",
+    "static/js/main.c3ceadff.js"
+  ]
+}
