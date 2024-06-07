@@ -1,21 +1,21 @@
 {
   "files": {
-    "main.css": "/CryptoDragon/static/css/main.f349675e.css",
-    "main.js": "/CryptoDragon/static/js/main.014980e0.js",
+    "main.css": "/CryptoDragon/static/css/main.d5577a3e.css",
+    "main.js": "/CryptoDragon/static/js/main.dd87d218.js",
     "static/js/435.154e1808.chunk.js": "/CryptoDragon/static/js/435.154e1808.chunk.js",
     "static/js/774.e95ddf23.chunk.js": "/CryptoDragon/static/js/774.e95ddf23.chunk.js",
     "static/js/787.758fe0c4.chunk.js": "/CryptoDragon/static/js/787.758fe0c4.chunk.js",
     "static/js/459.2b4e8e79.chunk.js": "/CryptoDragon/static/js/459.2b4e8e79.chunk.js",
     "index.html": "/CryptoDragon/index.html",
-    "main.f349675e.css.map": "/CryptoDragon/static/css/main.f349675e.css.map",
-    "main.014980e0.js.map": "/CryptoDragon/static/js/main.014980e0.js.map",
+    "main.d5577a3e.css.map": "/CryptoDragon/static/css/main.d5577a3e.css.map",
+    "main.dd87d218.js.map": "/CryptoDragon/static/js/main.dd87d218.js.map",
     "435.154e1808.chunk.js.map": "/CryptoDragon/static/js/435.154e1808.chunk.js.map",
     "774.e95ddf23.chunk.js.map": "/CryptoDragon/static/js/774.e95ddf23.chunk.js.map",
     "787.758fe0c4.chunk.js.map": "/CryptoDragon/static/js/787.758fe0c4.chunk.js.map",
     "459.2b4e8e79.chunk.js.map": "/CryptoDragon/static/js/459.2b4e8e79.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.f349675e.css",
-    "static/js/main.014980e0.js"
+    "static/css/main.d5577a3e.css",
+    "static/js/main.dd87d218.js"
   ]
 }
