@@ -30,7 +30,7 @@ ERC721 및 ERC721URIStorage 표준을 사용하여 고유한 토큰 소유권과
 
 ### 시작하기
 
-    ## **https://bchsol.github.io/CryptoDragon/**
+**https://bchsol.github.io/CryptoDragon/**
     
 1.  **Web3 지갑 설정:** MetaMask 또는 WalletConnect와 같이 Ethereum 및 NFT 상호 작용을 지원하는 지갑을 선택합니다.
 2.  **게임에 연결:** Crypto Dragon 애플리케이션에 접속하고 지갑을 연결하여 계약과 상호 작용합니다.
