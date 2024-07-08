@@ -29,9 +29,8 @@ ERC721 및 ERC721URIStorage 표준을 사용하여 고유한 토큰 소유권과
 - **Exploration:** 탐험을 통해 여러 아이템을 얻을 수 있습니다.
 
 ### 시작하기
-
-1.  **Web3 지갑 설정:** MetaMask 또는 WalletConnect와 같이 Ethereum 및 NFT 상호 작용을 지원하는 지갑을 선택합니다.
-2.  **게임에 연결:** Crypto Dragon 웹에 접속하고 지갑을 연결하여 계약과 상호 작용합니다.
+1.  **웹에 접속:**: https://bchsol.github.io/CryptoDragon/ 웹에 접속합니다.
+2.  **Web3 지갑 연결:** MetaMask 또는 WalletConnect와 같이 Ethereum 및 NFT 상호 작용을 지원하는 지갑을 선택하고 연결합니다.
 3.  **NFT 얻기:** 다음 두 가지 방법 중 하나를 선택할 수 있습니다.
 
     - **제네시스 NFT 발행:** 초기 단계에서는 제한된 수의 제네시스 NFT를 토큰과 교환하여 발행할 수 있습니다(가용성에 따라 다름).
