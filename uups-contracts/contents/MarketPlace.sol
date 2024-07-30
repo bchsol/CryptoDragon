@@ -1,76 +1,119 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 
-contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    using CountersUpgradeable for CountersUpgradeable.Counter;
-    CountersUpgradeable.Counter private _itemIds;
-    CountersUpgradeable.Counter private _itemsSold;
+import "./IToken.sol";
+
+contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder {
+    uint128 private _itemIds;
+    uint128 private _itemsSold;
+    uint128 private _auctionIds;
+    uint128 private _auctionItemsSold;
 
     uint256 public marketFeePer;
-    IERC20Upgradeable public paymentToken;
-    IERC721Upgradeable public nftContract;
+
+    IERC20 public paymentToken;
+    IToken public ERC721Contract;
+    IToken public ERC1155Contract;
 
     struct MarketItem {
-        uint256 itemId;
+        uint128 itemId;
+        address owner;
         uint256 tokenId;
-        address payable owner;
         uint256 price;
+        uint256 quantity;
+        bool sold;
+        bool cancel;
+        bool isERC721;
+    }
+
+    struct AuctionItem {
+        uint128 itemId;
+        address owner;
+        uint256 tokenId;
+        uint256 reservePrice;
+        uint256 startTime;
+        uint256 endTime;
         bool sold;
         bool cancel;
     }
 
-    mapping(uint256 => uint256) private itemsByNFTToken;
+    struct Bid {
+        uint256 price;
+        uint256 timestamp;
+    }
+
+    // itemId => ItemInfo
     mapping(uint256 => MarketItem) public items;
+    // auctionId => auctionItemInfo
+    mapping(uint256 => AuctionItem) public auctionItems;
+    // auctionId => bidder Address => Bid
+    mapping(uint256 => mapping(address => Bid)) public bids;
+    // auctionId => highest bidder address 
+    mapping(uint256 => address) public highestBidder;
+    // auctionId => claim
+    mapping(uint256 => bool) public claimed;
+    // userAddress => funds
+    mapping(address => uint256) private claimableFunds;
 
-    event ItemListed(uint256 itemId, uint256 tokenId, address owner, uint256 price);
-    event ItemDelisted(uint256 itemId, uint256 tokenId, address owner, uint256 price);
-    event ItemBought(uint256 itemId, uint256 tokenId, address owner, address buyer, uint256 price);
+    event ItemListed(uint128 itemId, uint256 tokenId, address owner, uint256 price, uint256 quantity, bool isERC721);
+    event ItemDelisted(uint128 itemId, uint256 tokenId, address owner, uint256 price);
+    event ItemBought(uint128 itemId, uint256 tokenId, address owner, address buyer, uint256 price, uint256 quantity);
+    event AuctionListed(uint128 autionId, uint256 tokenId, address owner, uint256 reservePrice, uint256 startTime, uint256 endTime);
 
-    function initialize(address _nftContract, address _paymentToken) public initializer {
+    function initialize(address _ERC721Contract, address _ERC1155Contract, address _paymentToken) public initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        nftContract = IERC721Upgradeable(_nftContract);
-        paymentToken = IERC20Upgradeable(_paymentToken);
+        ERC721Contract = IToken(_ERC721Contract);
+        ERC1155Contract = IToken(_ERC1155Contract);
+        paymentToken = IERC20(_paymentToken);
+
         marketFeePer = 25;
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function listItem(uint256 tokenId, uint256 price) public {
+    function listItem(uint256 tokenId, uint256 price, uint256 quantity, bool isERC721) external {
         require(price > 0, "Price must be at least 1 wei");
+        require(quantity > 0, "Quantity must be at least 1");
+        require(isERC721 ? quantity == 1 : true, "Only one ERC721 token can be listed");
 
-        _itemIds.increment();
-        uint256 itemId = _itemIds.current();
+        if(isERC721) {
+            require(ERC721Contract.ownerOf(tokenId) == msg.sender, "You are not the owner");
+            require(ERC721Contract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
+        } else {
+            require(ERC1155Contract.balanceOf(msg.sender, tokenId) >= quantity, "Insufficient token balance");
+            require(ERC1155Contract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved"); 
+        }
 
-        require(nftContract.ownerOf(tokenId) == msg.sender, "You are not the owner");
-        require(nftContract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
+        unchecked {
+            ++_itemIds;
+        }
 
-        nftContract.approve(address(this), tokenId);
+        uint128 itemId = _itemIds;
 
         items[itemId] = MarketItem({
             itemId: itemId,
+            owner: msg.sender,
             tokenId: tokenId,
-            owner: payable(msg.sender),
             price: price,
+            quantity: quantity,
             sold: false,
-            cancel: false
+            cancel: false,
+            isERC721: isERC721
         });
 
-        itemsByNFTToken[tokenId] = itemId;
-
-        emit ItemListed(itemId, tokenId, msg.sender, price);
+        emit ItemListed(itemId, tokenId, msg.sender, price, quantity, isERC721);
     }
 
-    function unlistItem(uint256 itemId) public {
+    function unlistItem(uint128 itemId) public {
         MarketItem storage item = items[itemId];
         require(item.owner == msg.sender, "You are not the owner");
         item.cancel = true;
@@ -78,79 +121,158 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit ItemDelisted(itemId, item.tokenId, msg.sender, item.price);
     }
 
-    function buyItem(uint256 itemId) public payable {
+    function buyItem(uint128 itemId, uint256 quantity) public payable {
         MarketItem storage item = items[itemId];
-        require(!item.sold, "Item is not for sale");
-        require(!item.cancel, "Item is not for sale");
-        require(paymentToken.balanceOf(msg.sender) >= item.price, "Insufficient funds");
-        require(paymentToken.allowance(msg.sender, address(this)) >= item.price, "Insufficient allowance");
+        require(!item.sold && !item.cancel, "Item is not for sale");
+        require(item.quantity >= quantity, "Not enough quantity available");
+        require(paymentToken.balanceOf(msg.sender) >= item.price * quantity, "Insufficient funds");
+        require(paymentToken.allowance(msg.sender, address(this)) >= item.price * quantity, "Insufficient allowance");
 
+        uint256 totalPrice = item.price * quantity;
         uint256 fee = (item.price * marketFeePer) / 1000;
-        uint256 sellerProceeds = item.price - fee;
+        uint256 sellerProceeds = totalPrice - fee;
 
-        item.sold = true;
-        _itemsSold.increment();
-
-        nftContract.transferFrom(item.owner, msg.sender, item.tokenId);
-
-        // Transfer the fee to the market
-        require(paymentToken.transferFrom(msg.sender, owner(), fee), "Fee transfer failed");
-
-        // Transfer the sell price to the seller
-        require(paymentToken.transferFrom(msg.sender, item.owner, sellerProceeds), "Seller proceeds transfer failed");
-
-        emit ItemBought(itemId, item.tokenId, item.owner, msg.sender, item.price);
-    }
-
-    function fetchMarketItemLog() public view returns (MarketItem[] memory) {
-        uint totalItemCount = _itemIds.current();
-
-        MarketItem[] memory itemLog = new MarketItem[](totalItemCount);
-        for (uint i = 1; i <= totalItemCount; i++) {
-            itemLog[i - 1] = items[i];
-        }
-
-        return itemLog;
-    }
-
-    function fetchMarketItemListed() public view returns (MarketItem[] memory) {
-        uint totalItemCount = _itemIds.current();
-        uint unsoldItemCount = totalItemCount - _itemsSold.current();
-        uint currentIndex = 0;
-
-        MarketItem[] memory marketItems = new MarketItem[](unsoldItemCount);
-        for (uint i = 1; i <= totalItemCount; i++) {
-            if (items[i].sold == false && items[i].cancel == false) {
-                marketItems[currentIndex] = items[i];
-                currentIndex += 1;
+        item.quantity -= quantity;
+        if(item.quantity == 0) {
+            item.sold = true;
+            unchecked{
+                ++_itemsSold;
             }
         }
-        assembly { mstore(marketItems, currentIndex) }
-        return marketItems;
+
+        item.isERC721 
+        ? ERC721Contract.safeTransferFrom(item.owner, msg.sender, item.tokenId,"") 
+        : ERC1155Contract.safeTransferFrom(item.owner, msg.sender, item.tokenId, quantity, "");
+
+        paymentToken.transferFrom(msg.sender, address(this), totalPrice);
+        claimableFunds[owner()] += fee;
+        claimableFunds[item.owner] += sellerProceeds;
+
+        emit ItemBought(itemId, item.tokenId, item.owner, msg.sender, item.price, quantity);
     }
 
-    function fetchMyItemListed() public view returns (MarketItem[] memory) {
-        uint totalItemCount = _itemIds.current();
-        uint currentIndex = 0;
 
-        MarketItem[] memory myItems = new MarketItem[](totalItemCount);
-        for (uint i = 1; i <= totalItemCount; i++) {
-            if (items[i].owner == msg.sender && items[i].sold == false && items[i].cancel == false) {
-                myItems[currentIndex] = items[i];
-                currentIndex += 1;
+    /// Auction
+    /// only ERC721
+
+    function listAuction(
+        uint256 tokenId, 
+        uint256 startTime,
+        uint256 endTime,
+        uint256 reservePrice) external {
+            require(reservePrice > 0, "Price must be at least 1 wei");
+            require(ERC721Contract.ownerOf(tokenId) == msg.sender, "You are not the owner");
+            require(ERC721Contract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
+
+            unchecked {
+            ++_auctionIds;
             }
-        }
-        assembly { mstore(myItems, currentIndex) }
-        return myItems;
+
+            auctionItems[_auctionIds] = AuctionItem({
+            itemId : _auctionIds,
+            owner : msg.sender,
+            tokenId : tokenId,
+            reservePrice : reservePrice,
+            startTime : startTime,
+            endTime : endTime,
+            sold: false,
+            cancel: false
+            });
+        emit AuctionListed(_auctionIds, tokenId, msg.sender, reservePrice, startTime, endTime);
     }
 
-    function isListed(uint256 tokenId) public view returns (bool) {
-        return itemsByNFTToken[tokenId] != 0;
+    function bid(uint128 auctionId, uint256 price) external {
+        require(getAuctionStatus(auctionId) == "ACTIVE", "Auction not Active");
+        require(msg.sender != highestBidder[auctionId], "Already highest bidder");
+        require(price > bids[auctionId][highestBidder[auctionId]].price, "Bid price too low");
+        require(price >= auctionItems[auctionId].reservePrice, "Bid below reserve price");
+
+        paymentToken.transferFrom(msg.sender, address(this), price);
+
+        address lastHighestBidder = highestBidder[auctionId];
+        uint256 lastHighestPrice = bids[auctionId][lastHighestBidder].price;
+
+        if(lastHighestBidder != msg.sender) {
+            delete bids[auctionId][lastHighestBidder].price;
+            claimableFunds[lastHighestBidder] += lastHighestPrice;
+        }
+
+        bids[auctionId][msg.sender] = Bid({price :price, timestamp: block.timestamp});
+        highestBidder[auctionId] = msg.sender;
+    }
+
+    function resolveAuction(uint256 auctionId) external {
+        require(!claimed[auctionId], "Already claimed");
+        
+        bytes32 status = getAuctionStatus(auctionId);
+        require(status == "CANCELED" || status == "ENDED", "Auction is still active");
+        
+        uint256 tokenId = auctionItems[auctionId].tokenId;
+        address seller = auctionItems[auctionId].owner;
+        address winner = highestBidder[auctionId];
+        uint256 winningBid = bids[auctionId][winner].price;
+
+        uint256 fee = (winningBid * marketFeePer) / 1000;
+        uint256 sellerProceeds = winningBid - fee;
+
+        auctionItems[auctionId].sold = true;
+        unchecked{
+            ++_auctionItemsSold;
+        }
+        
+        claimableFunds[seller] += sellerProceeds;
+        claimableFunds[owner()] += fee;
+
+        ERC721Contract.safeTransferFrom(seller, winner, tokenId, "");
+
+        claimed[auctionId] = true;
+    }
+
+    function cancelAuction(uint256 auctionId) external {
+        require(msg.sender == auctionItems[auctionId].owner || msg.sender == owner(), "Only owner or sale");
+
+        bytes32 status = getAuctionStatus(auctionId);
+        require(status == "ACTIVE" || status == "PENDING", "Auction must be Active or Pending");
+        
+        address currentHighestBidder = highestBidder[auctionId];
+        uint256 currentHighestBid = bids[auctionId][currentHighestBidder].price;
+
+        auctionItems[auctionId].cancel = true;
+
+        claimableFunds[currentHighestBidder] += currentHighestBid;
+    }
+
+
+    function getAuctionStatus(uint256 auctionId) internal view returns(bytes32) {
+        uint256 startTime = auctionItems[auctionId].startTime;
+        uint256 endTime = auctionItems[auctionId].endTime;
+
+        if(block.timestamp < startTime) return "PENDING";
+
+        if(block.timestamp >= startTime && block.timestamp < endTime) return "ACTIVE";
+
+        if(block.timestamp > endTime) return "ENDED";
+
+        return "NONE";
+    }
+
+
+
+
+    function claimFunds() external {
+        uint256 payout = claimableFunds[msg.sender];
+        require(payout == 0, "No funds to claim");
+
+        delete claimableFunds[msg.sender];
+        paymentToken.transfer(msg.sender, payout);
+    }
+
+    function checkClaimableFunds() external view returns(uint256) {
+        return claimableFunds[msg.sender];
     }
 
     function updateListingPrice(uint256 itemId, uint256 _listingPrice) public {
         require(items[itemId].owner == msg.sender, "You are not the owner");
-
         items[itemId].price = _listingPrice;
     }
 
