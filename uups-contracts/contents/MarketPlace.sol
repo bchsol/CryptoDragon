@@ -19,14 +19,15 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
     uint256 public marketFeePer;
 
     IERC20 public paymentToken;
-    IToken public ERC721Contract;
-    IToken public ERC1155Contract;
 
     struct MarketItem {
         uint128 itemId;
         address owner;
+        address tokenAddress;
         uint256 tokenId;
         uint256 price;
+        uint256 startTime;
+        uint256 endTime;
         uint256 quantity;
         bool sold;
         bool cancel;
@@ -36,6 +37,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
     struct AuctionItem {
         uint128 itemId;
         address owner;
+        address tokenAddress;
         uint256 tokenId;
         uint256 reservePrice;
         uint256 startTime;
@@ -61,18 +63,18 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
     mapping(uint256 => bool) public claimed;
     // userAddress => funds
     mapping(address => uint256) private claimableFunds;
+    // erc721 or erc1155 contract
+    mapping(address => bool) public approvalContract;
 
-    event ItemListed(uint128 itemId, uint256 tokenId, address owner, uint256 price, uint256 quantity, bool isERC721);
+    event ItemListed(uint128 itemId, address tokenAddress, uint256 tokenId, address owner, uint256 price, uint256 quantity, bool isERC721);
     event ItemDelisted(uint128 itemId, uint256 tokenId, address owner, uint256 price);
-    event ItemBought(uint128 itemId, uint256 tokenId, address owner, address buyer, uint256 price, uint256 quantity);
-    event AuctionListed(uint128 autionId, uint256 tokenId, address owner, uint256 reservePrice, uint256 startTime, uint256 endTime);
+    event ItemBought(uint128 itemId, address tokenAddress, uint256 tokenId, address owner, address buyer, uint256 price, uint256 quantity);
+    event AuctionListed(uint128 autionId, address tokenAddress, uint256 tokenId, address owner, uint256 reservePrice, uint256 startTime, uint256 endTime);
 
-    function initialize(address _ERC721Contract, address _ERC1155Contract, address _paymentToken) public initializer {
+    function initialize(address _paymentToken) public initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
 
-        ERC721Contract = IToken(_ERC721Contract);
-        ERC1155Contract = IToken(_ERC1155Contract);
         paymentToken = IERC20(_paymentToken);
 
         marketFeePer = 25;
@@ -80,18 +82,27 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function listItem(uint256 tokenId, uint256 price, uint256 quantity, bool isERC721) external {
+    function listItem(
+        address tokenAddress, 
+        uint256 tokenId, 
+        uint256 startTime, 
+        uint256 endTime, 
+        uint256 price, 
+        uint256 quantity, 
+        bool isERC721) external {
+        require(isApprovalAddress(tokenAddress), "Not approval address");
         require(price > 0, "Price must be at least 1 wei");
         require(quantity > 0, "Quantity must be at least 1");
         require(isERC721 ? quantity == 1 : true, "Only one ERC721 token can be listed");
 
+        IToken tokenContract = IToken(tokenAddress);
+
         if(isERC721) {
-            require(ERC721Contract.ownerOf(tokenId) == msg.sender, "You are not the owner");
-            require(ERC721Contract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
+            require(tokenContract.ownerOf(tokenId) == msg.sender, "You are not the owner");
         } else {
-            require(ERC1155Contract.balanceOf(msg.sender, tokenId) >= quantity, "Insufficient token balance");
-            require(ERC1155Contract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved"); 
+            require(tokenContract.balanceOf(msg.sender, tokenId) >= quantity, "Insufficient token balance");
         }
+        require(tokenContract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved"); 
 
         unchecked {
             ++_itemIds;
@@ -102,15 +113,18 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         items[itemId] = MarketItem({
             itemId: itemId,
             owner: msg.sender,
+            tokenAddress: tokenAddress,
             tokenId: tokenId,
             price: price,
+            startTime: startTime,
+            endTime: endTime,
             quantity: quantity,
             sold: false,
             cancel: false,
             isERC721: isERC721
         });
 
-        emit ItemListed(itemId, tokenId, msg.sender, price, quantity, isERC721);
+        emit ItemListed(itemId, tokenAddress, tokenId, msg.sender, price, quantity, isERC721);
     }
 
     function unlistItem(uint128 itemId) public {
@@ -132,6 +146,8 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         uint256 fee = (item.price * marketFeePer) / 1000;
         uint256 sellerProceeds = totalPrice - fee;
 
+        IToken tokenContract = IToken(item.tokenAddress);
+
         item.quantity -= quantity;
         if(item.quantity == 0) {
             item.sold = true;
@@ -141,14 +157,14 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         }
 
         item.isERC721 
-        ? ERC721Contract.safeTransferFrom(item.owner, msg.sender, item.tokenId,"") 
-        : ERC1155Contract.safeTransferFrom(item.owner, msg.sender, item.tokenId, quantity, "");
+        ? tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId,"") 
+        : tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId, quantity, "");
 
         paymentToken.transferFrom(msg.sender, address(this), totalPrice);
         claimableFunds[owner()] += fee;
         claimableFunds[item.owner] += sellerProceeds;
 
-        emit ItemBought(itemId, item.tokenId, item.owner, msg.sender, item.price, quantity);
+        emit ItemBought(itemId, item.tokenAddress, item.tokenId, item.owner, msg.sender, item.price, quantity);
     }
 
 
@@ -157,28 +173,33 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
 
     function listAuction(
         uint256 tokenId, 
+        address tokenAddress,
         uint256 startTime,
         uint256 endTime,
         uint256 reservePrice) external {
+            require(isApprovalAddress(tokenAddress), "Not approval address");
             require(reservePrice > 0, "Price must be at least 1 wei");
-            require(ERC721Contract.ownerOf(tokenId) == msg.sender, "You are not the owner");
-            require(ERC721Contract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
+            IToken tokenContract = IToken(tokenAddress);
+            require(tokenContract.ownerOf(tokenId) == msg.sender, "You are not the owner");
+            require(tokenContract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
 
             unchecked {
-            ++_auctionIds;
+                ++_auctionIds;
             }
+            uint128 auctionId = _auctionIds;
 
-            auctionItems[_auctionIds] = AuctionItem({
-            itemId : _auctionIds,
-            owner : msg.sender,
-            tokenId : tokenId,
-            reservePrice : reservePrice,
-            startTime : startTime,
-            endTime : endTime,
+            auctionItems[auctionId] = AuctionItem({
+            itemId: auctionId,
+            owner: msg.sender,
+            tokenAddress: tokenAddress,
+            tokenId: tokenId,
+            reservePrice: reservePrice,
+            startTime: startTime,
+            endTime: endTime,
             sold: false,
             cancel: false
             });
-        emit AuctionListed(_auctionIds, tokenId, msg.sender, reservePrice, startTime, endTime);
+        emit AuctionListed(auctionId, tokenAddress, tokenId, msg.sender, reservePrice, startTime, endTime);
     }
 
     function bid(uint128 auctionId, uint256 price) external {
@@ -201,7 +222,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         highestBidder[auctionId] = msg.sender;
     }
 
-    function resolveAuction(uint256 auctionId) external {
+    function resolveAuction(uint128 auctionId) external {
         require(!claimed[auctionId], "Already claimed");
         
         bytes32 status = getAuctionStatus(auctionId);
@@ -215,6 +236,8 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         uint256 fee = (winningBid * marketFeePer) / 1000;
         uint256 sellerProceeds = winningBid - fee;
 
+        IToken tokenContract = IToken(auctionItems[auctionId].tokenAddress);
+
         auctionItems[auctionId].sold = true;
         unchecked{
             ++_auctionItemsSold;
@@ -223,12 +246,12 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         claimableFunds[seller] += sellerProceeds;
         claimableFunds[owner()] += fee;
 
-        ERC721Contract.safeTransferFrom(seller, winner, tokenId, "");
+        tokenContract.safeTransferFrom(seller, winner, tokenId, "");
 
         claimed[auctionId] = true;
     }
 
-    function cancelAuction(uint256 auctionId) external {
+    function cancelAuction(uint128 auctionId) external {
         require(msg.sender == auctionItems[auctionId].owner || msg.sender == owner(), "Only owner or sale");
 
         bytes32 status = getAuctionStatus(auctionId);
@@ -242,8 +265,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         claimableFunds[currentHighestBidder] += currentHighestBid;
     }
 
-
-    function getAuctionStatus(uint256 auctionId) internal view returns(bytes32) {
+    function getAuctionStatus(uint128 auctionId) public view returns(bytes32) {
         uint256 startTime = auctionItems[auctionId].startTime;
         uint256 endTime = auctionItems[auctionId].endTime;
 
@@ -256,8 +278,9 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         return "NONE";
     }
 
-
-
+    function isApprovalAddress(address tokenAddress) internal view returns(bool) {
+        return approvalContract[tokenAddress];
+    }
 
     function claimFunds() external {
         uint256 payout = claimableFunds[msg.sender];
@@ -271,12 +294,20 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         return claimableFunds[msg.sender];
     }
 
-    function updateListingPrice(uint256 itemId, uint256 _listingPrice) public {
+    function updateListingPrice(uint128 itemId, uint256 _listingPrice) public {
         require(items[itemId].owner == msg.sender, "You are not the owner");
         items[itemId].price = _listingPrice;
     }
 
     function setMarketPlaceFeePer(uint256 newFee) external onlyOwner {
         marketFeePer = newFee;
+    }
+
+    function setApprovalAddress(address tokenAddress) external {
+        approvalContract[tokenAddress] = true;
+    }
+
+    function removeAddress(address tokenAddress) external {
+        delete approvalContract[tokenAddress];
     }
 }
