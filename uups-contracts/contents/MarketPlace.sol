@@ -11,8 +11,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./IToken.sol";
 
 contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC721Holder, ERC1155Holder {
-    uint128 private _itemIds;
-    uint128 private _itemsSold;
+    uint128 private _saleIds;
+    uint128 private _saleSold;
     uint128 private _auctionIds;
     uint128 private _auctionItemsSold;
 
@@ -105,10 +105,10 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         require(tokenContract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved"); 
 
         unchecked {
-            ++_itemIds;
+            _saleIds++;
         }
 
-        uint128 itemId = _itemIds;
+        uint128 itemId = _saleIds;
 
         items[itemId] = MarketItem({
             itemId: itemId,
@@ -136,6 +136,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
     }
 
     function buyItem(uint128 itemId, uint256 quantity) public payable {
+        require(getSaleStatus(itemId) == "ACTIVE", "Not Active");
         MarketItem storage item = items[itemId];
         require(!item.sold && !item.cancel, "Item is not for sale");
         require(item.quantity >= quantity, "Not enough quantity available");
@@ -152,13 +153,15 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         if(item.quantity == 0) {
             item.sold = true;
             unchecked{
-                ++_itemsSold;
+                _saleSold++;
             }
         }
 
-        item.isERC721 
-        ? tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId,"") 
-        : tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId, quantity, "");
+        if(item.isERC721){
+            tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId,"");
+        } else {
+            tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId, quantity, "");
+        }
 
         paymentToken.transferFrom(msg.sender, address(this), totalPrice);
         claimableFunds[owner()] += fee;
@@ -168,7 +171,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
     }
 
 
-    /// Auction
+    /// Auction Fuction
     /// only ERC721
 
     function listAuction(
@@ -176,7 +179,8 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         address tokenAddress,
         uint256 startTime,
         uint256 endTime,
-        uint256 reservePrice) external {
+        uint256 reservePrice
+    ) external {
             require(isApprovalAddress(tokenAddress), "Not approval address");
             require(reservePrice > 0, "Price must be at least 1 wei");
             IToken tokenContract = IToken(tokenAddress);
@@ -184,7 +188,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
             require(tokenContract.isApprovedForAll(msg.sender, address(this)), "Marketplace not approved");
 
             unchecked {
-                ++_auctionIds;
+                _auctionIds++;
             }
             uint128 auctionId = _auctionIds;
 
@@ -240,7 +244,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
 
         auctionItems[auctionId].sold = true;
         unchecked{
-            ++_auctionItemsSold;
+            _auctionItemsSold++;
         }
         
         claimableFunds[seller] += sellerProceeds;
@@ -265,17 +269,34 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         claimableFunds[currentHighestBidder] += currentHighestBid;
     }
 
+    /// View Function
+
     function getAuctionStatus(uint128 auctionId) public view returns(bytes32) {
-        uint256 startTime = auctionItems[auctionId].startTime;
-        uint256 endTime = auctionItems[auctionId].endTime;
+        AuctionItem memory auctionItem = auctionItems[auctionId];
 
-        if(block.timestamp < startTime) return "PENDING";
+        if(block.timestamp < auctionItem.startTime) return "PENDING";
 
-        if(block.timestamp >= startTime && block.timestamp < endTime) return "ACTIVE";
+        if(auctionItem.cancel) return "CANCELED";
 
-        if(block.timestamp > endTime) return "ENDED";
+        if(block.timestamp >= auctionItem.startTime && block.timestamp < auctionItem.endTime) return "ACTIVE";
 
-        return "NONE";
+        if(block.timestamp > auctionItem.endTime) return "ENDED";
+
+        return "ERROR";
+    }
+
+    function getSaleStatus(uint128 itemId) public view returns(bytes32) {
+        MarketItem memory item = items[itemId];
+
+        if(block.timestamp < item.startTime) return "PENDING";
+
+        if(item.cancel) return "CANCELED";
+
+        if(block.timestamp < item.endTime && item.quantity > 0) return "ACTIVE";
+
+        if(block.timestamp >= item.endTime || item.sold) return "ENDED"; 
+
+        return "ERROR";
     }
 
     function isApprovalAddress(address tokenAddress) internal view returns(bool) {
