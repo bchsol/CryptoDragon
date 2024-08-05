@@ -163,7 +163,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
             tokenContract.safeTransferFrom(item.owner, msg.sender, item.tokenId, quantity, "");
         }
 
-        paymentToken.transferFrom(msg.sender, address(this), totalPrice);
+        require(paymentToken.transferFrom(msg.sender, address(this), totalPrice), "Transfer failed");
         claimableFunds[owner()] += fee;
         claimableFunds[item.owner] += sellerProceeds;
 
@@ -212,7 +212,7 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
         require(price > bids[auctionId][highestBidder[auctionId]].price, "Bid price too low");
         require(price >= auctionItems[auctionId].reservePrice, "Bid below reserve price");
 
-        paymentToken.transferFrom(msg.sender, address(this), price);
+        require(paymentToken.transferFrom(msg.sender, address(this), price), "Transfer failed");
 
         address lastHighestBidder = highestBidder[auctionId];
         uint256 lastHighestPrice = bids[auctionId][lastHighestBidder].price;
@@ -305,10 +305,10 @@ contract Marketplace is Initializable, OwnableUpgradeable, UUPSUpgradeable, ERC7
 
     function claimFunds() external {
         uint256 payout = claimableFunds[msg.sender];
-        require(payout == 0, "No funds to claim");
+        require(payout > 0, "No funds to claim");
 
-        delete claimableFunds[msg.sender];
-        paymentToken.transfer(msg.sender, payout);
+        claimableFunds[msg.sender] = 0;
+        require(paymentToken.transfer(msg.sender, payout), "Claim failed");
     }
 
     function checkClaimableFunds() external view returns(uint256) {
