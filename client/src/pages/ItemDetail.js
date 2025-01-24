@@ -6,7 +6,7 @@ import {
   fetchMarketItems,
 } from "../blockchain/fetchMarketData";
 import { useWeb3ModalProvider } from "@web3modal/ethers/react"
-import { BrowserProvider, Contract, formatUnits, parseUnits } from "ethers";
+import { BrowserProvider, Contract, formatUnits, parseUnits, Block } from "ethers";
 import marketContractData from "../contracts/marketContract";
 import drinkContractData from "../contracts/drinkContract";
 import {
@@ -46,16 +46,12 @@ import forwarder from "../contracts/forwarder";
 const forwarderAddress = forwarder.AddressSepolia;
 const forwarderAbi = forwarder.Abi;
 
-const handleTransaction = async (
-  contractAddress,
-  abi,
-  walletProvider,
-  action,
-  ...args
-) => {
+const handleTransaction = async (contractAddress, abi, walletProvider, action, ...args) => {
   try {
     const ethersProvider = new BrowserProvider(walletProvider);
     const signer = await ethersProvider.getSigner();
+    const forwarderContract = new Contract(forwarderAddress, forwarderAbi, signer);
+    const nonce = await getNonce(forwarderContract, walletProvider.address);
 
     if (action === "buyItem" || action === "bid") {
       const drinkContract = new Contract(
@@ -74,30 +70,20 @@ const handleTransaction = async (
         const contractInterface = getInterface(drinkContractData.Abi);
         const callFunction = contractInterface.encodeFunctionData('approve', [contractAddress,priceInDrink]);
 
-        const forwarderContract = new Contract(forwarderAddress, forwarderAbi, signer);
-        const nonce = await getNonce(forwarderContract, walletProvider.address);
         const request = createRequest(walletProvider.address, drinkContractData.AddressSepolia, callFunction, nonce);
-
         const result = await requestMetaTx(signer, request);
         console.log(result);
       }
     }
 
     const contractInterface = getInterface(abi);
-    let callFunction;
-    const forwarderContract = new Contract(forwarderAddress, forwarderAbi, signer);
-    const nonce = await getNonce(forwarderContract, walletProvider.address);
-
-    if (action === "buyItem") {
-      callFunction = contractInterface.encodeFunctionData('buyItem', [args[0],1]);
-    } else if (action === "bid") {
-      callFunction = contractInterface.encodeFunctionData('bid', [...args]);
-    }
+    const callFunction = action === "buyItem" 
+      ? contractInterface.encodeFunctionData('buyItem', [args[0], 1]) 
+      : contractInterface.encodeFunctionData('bid', [...args]);
 
     const request = createRequest(walletProvider.address, contractAddress, callFunction, nonce);
     const result = await requestMetaTx(signer, request);
     console.log(result);
-
     window.location.reload();
   } catch (error) {
     console.error(`Failed to ${action}:`, error);
@@ -108,8 +94,7 @@ function ItemDetail() {
   const { walletProvider } = useWeb3ModalProvider();
   const { id } = useParams();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const itemType = searchParams.get("type");
+  const itemType = new URLSearchParams(location.search).get("type");
 
   const [marketItem, setMarketItem] = useState(null);
   const [tokenInfo, setTokenInfo] = useState([]);
@@ -120,18 +105,11 @@ function ItemDetail() {
     const fetchData = async () => {
       try {
         const ethersProvider = new BrowserProvider(walletProvider);
-        let marketData = [];
+        const marketData = itemType === "market" 
+          ? await fetchMarketItems(ethersProvider) 
+          : await fetchAuctionItems(ethersProvider);
 
-        if (itemType === "market") {
-          marketData = await fetchMarketItems(ethersProvider);
-        } else if (itemType === "auction") {
-          marketData = await fetchAuctionItems(ethersProvider);
-        }
-
-        const marketItemData = marketData.find(
-          (item) => Number(item.itemId) == id
-        );
-
+        const marketItemData = marketData.find(item => Number(item.itemId) == id);
         setMarketItem(marketItemData);
         setTokenInfo(marketItemData.tokenInfo);
         setGrowthInfo(marketItemData.growthInfo);
@@ -210,22 +188,33 @@ const DetailsSection = ({
   setBidAmount,
   walletProvider,
 }) => {
-  const { price, bidInfo, startTime, endTime } = marketItem;
-  const SaleRemaining = endTime - startTime;
+  const [saleRemaining, setSaleRemaining] = useState(0);
+
+  useEffect(() => {
+    const fetchSaleRemaining = async () => {
+      const ethersProvider = new BrowserProvider(walletProvider);
+      const currentBlockTimestamp = await ethersProvider.getBlock("latest").then(block => block.timestamp);
+      const { endTime } = marketItem;
+      if(endTime - currentBlockTimestamp <= 0) setSaleRemaining(0);
+      else setSaleRemaining(endTime - currentBlockTimestamp);
+    };
+
+    fetchSaleRemaining();
+  }, [marketItem]);
 
   return (
     <>
       <PriceInfo
         id={id}
-        price={price}
-        SaleRemaining={SaleRemaining}
+        price={marketItem.price}
+        SaleRemaining={saleRemaining}
         itemType={itemType}
-        bidInfo={bidInfo}
+        bidInfo={marketItem.bidInfo}
         bidAmount={bidAmount}
         setBidAmount={setBidAmount}
         walletProvider={walletProvider}
       />
-      {itemType === "auction" && bidInfo && <BidInfo bidInfo={bidInfo} />}
+      {itemType === "auction" && marketItem.bidInfo && <BidInfo bidInfo={marketItem.bidInfo} />}
       <GrowthInfo tokenInfo={tokenInfo} growthInfo={growthInfo} />
     </>
   );

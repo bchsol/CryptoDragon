@@ -105,13 +105,9 @@ function MarketPlace() {
 
   // 3. Filtering and sorting items based on user input
   const filterItems = useCallback(() => {
-    let items = activeTab === "market" ? marketItems : auctionItems;
-    if (activeTab === "history") {
-      items =
-        activeSubTab === "market"
-          ? history.marketHistory
-          : history.auctionHistory;
-    }
+    let items = activeTab === "history" 
+    ? (activeSubTab === "market" ? history.marketHistory : history.auctionHistory) 
+    : (activeTab === "market" ? marketItems : auctionItems);
 
     const filtered = items
       .filter((item) => {
@@ -211,50 +207,28 @@ function MarketPlace() {
         <ProfileImage src={secretEggImage} alt="Profile" />
         <ProfileInfo>
           <h1>Dragon Collection</h1>
-          <p>
-            Items: {totalItems} | Floor Price: {lowestPrice} Drink
-          </p>
+          <p>Items: {totalItems} | Floor Price: {lowestPrice} Drink</p>
         </ProfileInfo>
       </BannerSection>
 
       {/* Tabs and SubTabs */}
       <Tabs>
         {/* Market, Auction, and History Tabs */}
-        <Tab
-          active={activeTab === "market"}
-          onClick={() => setActiveTab("market")}
-        >
-          Market
-        </Tab>
-        <Tab
-          active={activeTab === "auction"}
-          onClick={() => setActiveTab("auction")}
-        >
-          Auction
-        </Tab>
-        <Tab
-          active={activeTab === "history"}
-          onClick={() => setActiveTab("history")}
-        >
-          History
-        </Tab>
+        {["market", "auction", "history"].map(tab => (
+          <Tab key={tab} active={activeTab === tab} onClick={() => setActiveTab(tab)}>
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </Tab>
+        ))}
       </Tabs>
 
       {activeTab === "history" && (
         <SubTabs>
           {/* SubTabs for market and auction history */}
-          <SubTab
-            active={activeSubTab === "market"}
-            onClick={() => setActiveSubTab("market")}
-          >
-            Market History
-          </SubTab>
-          <SubTab
-            active={activeSubTab === "auction"}
-            onClick={() => setActiveSubTab("auction")}
-          >
-            Auction History
-          </SubTab>
+          {["market", "auction"].map(subTab => (
+            <SubTab key={subTab} active={activeSubTab === subTab} onClick={() => setActiveSubTab(subTab)}>
+              {subTab.charAt(0).toUpperCase() + subTab.slice(1)} History
+            </SubTab>
+          ))}
         </SubTabs>
       )}
 
@@ -303,7 +277,7 @@ function MarketPlace() {
             {filteredItems.map((nftItem) => (
               <Card
                 key={nftItem.id}
-                onClick={() => handleItemClick(nftItem.itemId)}
+                onClick={activeTab !== "history" ? () => handleItemClick(nftItem.itemId) : undefined}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "scale(1.02)";
                   e.currentTarget.style.boxShadow =
@@ -324,7 +298,8 @@ function MarketPlace() {
                         }`
                       : `Price: ${
                           formatUnits(nftItem.price, 18).split(".")[0]
-                        }`}
+                        }`
+                    }
                     <br />
                     {activeTab === "auction" && nftItem.bidInfo?.price
                       ? `Current Bid: ${
@@ -332,7 +307,12 @@ function MarketPlace() {
                             "."
                           )[0]
                         }`
-                      : ""}
+                      : ""
+                    }
+                    {activeTab === "history" && activeSubTab === "market"
+                     ? `${nftItem.saleStatus}` : activeSubTab === "auction" 
+                     ? `${nftItem.auctionStatus}`: ""
+                    }
                   </p>
                   {activeTab === "market" &&
                   nftItem.owner.toLowerCase() ===

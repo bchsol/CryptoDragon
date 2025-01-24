@@ -4,7 +4,7 @@ import dragonContractData from "../contracts/dragonContract";
 import forwarder from "../contracts/forwarder";
 
 import { useWeb3ModalProvider,useWeb3ModalAccount } from "@web3modal/ethers/react";
-import {  ethers } from "ethers";
+import { ethers } from "ethers";
 
 import {
   EggContainer,

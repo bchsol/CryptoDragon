@@ -84,65 +84,32 @@ function Collection() {
     setNftIds(nfts);
 
     const signer = await ethersProvider.getSigner();
-    const marketContract = new Contract(
-      marketContractAddress,
-      marketAbi,
-      signer
-    );
+    const marketContract = new Contract(marketContractAddress, marketAbi, signer);
 
     const statuses = await Promise.all(
       nfts.map(async (nft) => {
-        const isMarketListed = await marketContract.getListedInMarket(
-          dragonContractAddress,
-          nft.id
-        );
-        const isAuctionListed = await marketContract.getListedInAuction(
-          dragonContractAddress,
-          nft.id
-        );
-
-        if (isAuctionListed == true) {
-          let auctionId = 0;
-          let auctionStatus = null;
+        const isMarketListed = await marketContract.getListedInMarket(dragonContractAddress, nft.id);
+        const isAuctionListed = await marketContract.getListedInAuction(dragonContractAddress, nft.id);
+        let auctionId = 0, auctionStatus = null, marketId = 0, marketStatus = null;
+        // 경매 상태 확인
+        if (isAuctionListed) {
           try {
-            auctionId = await marketContract.getAuctionStatusByToken(
-              dragonContractAddress,
-              nft.id
-            );
+            auctionId = await marketContract.getAuctionStatusByToken(dragonContractAddress, nft.id);
             auctionStatus = await marketContract.getAuctionStatus(auctionId);
           } catch (error) {
-            console.error(
-              `Failed to fetch auction status for NFT ID ${nft.id}`,
-              error
-            );
+            console.error(`Failed to fetch auction status for NFT ID ${nft.id}`, error);
           }
-          return {
-            id: nft.id,
-            auctionId: auctionId,
-            listed: "auction",
-            status: decodeBytes32String(auctionStatus),
-          };
-        } else if (isMarketListed == true) {
-          let marketId = 0;
-          let marketStatus = null;
+          return { id: nft.id, auctionId, listed: "auction", status: decodeBytes32String(auctionStatus) };
+        } 
+        // 마켓 상태 확인
+        else if (isMarketListed) {
           try {
-            marketId = await marketContract.tokenToItemId(
-              dragonContractAddress,
-              nft.id
-            );
+            marketId = await marketContract.tokenToItemId(dragonContractAddress, nft.id);
             marketStatus = await marketContract.getSaleStatus(marketId);
           } catch (error) {
-            console.error(
-              `Failed to fetch auction status for NFT ID ${nft.id}`,
-              error
-            );
+            console.error(`Failed to fetch market status for NFT ID ${nft.id}`, error);
           }
-          return {
-            id: nft.id,
-            marketId: marketId,
-            listed: "market",
-            status: decodeBytes32String(marketStatus),
-          };
+          return { id: nft.id, marketId, listed: "market", status: decodeBytes32String(marketStatus) };
         }
         return { id: nft.id, listed: "notListed" };
       })
@@ -156,7 +123,6 @@ function Collection() {
         auctionId: Number(status.auctionId) || null,
         status: status.status,
       };
-
       return acc;
     }, {});
     setListedStatus(listedStatusMap);

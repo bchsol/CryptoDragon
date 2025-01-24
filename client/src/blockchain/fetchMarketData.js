@@ -1,24 +1,64 @@
 import marketContractData from "../contracts/marketContract";
-import { Contract, decodeBytes32String } from "ethers";
+import dragonContractData from "../contracts/dragonContract";
+import { Contract, decodeBytes32String, encodeBytes32String } from "ethers";
 import { fetchNftData } from "./fetchData";
 
 const marketContractAddress = marketContractData.AddressSepolia;
 const marketAbi = marketContractData.Abi;
 
+const dragonContractAddress = dragonContractData.AddressSepolia;
+
 export const fetchMarketItems = async (ethersProvider) => {
-  const filterFn = (item) => !item.sold && !item.cancel;
+  const providerContract = new Contract(
+    marketContractAddress,
+    marketAbi,
+    ethersProvider
+  );
+
+  const filterFn = async(item) => 
+    await providerContract.getSaleStatus(item) == encodeBytes32String("ACTIVE");
   return fetchMarketItemsData(ethersProvider, filterFn);
 };
 
 export const fetchHistory = async (ethersProvider) => {
-  const filterFn = (item) => item.sold || item.cancel;
-  const marketHistory = await fetchMarketItemsData(ethersProvider, filterFn);
-  const auctionHistory = await fetchAuctionItemsData(ethersProvider, filterFn);
-  return { marketHistory, auctionHistory };
+  const providerContract = new Contract(
+    marketContractAddress,
+    marketAbi,
+    ethersProvider
+  );
+  const marketFilterFn = async(itemId) => 
+    await providerContract.getSaleStatus(itemId) !== 
+    encodeBytes32String("ACTIVE") || encodeBytes32String("NOTLISTED");
+
+  const auctionFilterFn = async(itemId) => 
+    await providerContract.getAuctionStatus(itemId) !== 
+    encodeBytes32String("ACTIVE") || encodeBytes32String("NOTLISTED");
+
+  const marketHistory = await fetchMarketItemsData(ethersProvider, marketFilterFn);
+  const auctionHistory = await fetchAuctionItemsData(ethersProvider, auctionFilterFn);
+
+  const marketStatus = await Promise.all(marketHistory.map(async (item) => {
+    const saleStatus = decodeBytes32String(await providerContract.getSaleStatus(item.itemId));
+    return { ...item, saleStatus };
+  }));
+
+  const auctionStatus = await Promise.all(auctionHistory.map(async (item) => {
+    const auctionStatus = decodeBytes32String(await providerContract.getAuctionStatus(item.itemId));
+    return { ...item, auctionStatus };
+  }));
+
+  return { marketHistory: marketStatus, auctionHistory: auctionStatus };
 };
 
 export const fetchAuctionItems = async (ethersProvider) => {
-  const filterFn = (item) => !item.sold && !item.cancel;
+  const providerContract = new Contract(
+    marketContractAddress,
+    marketAbi,
+    ethersProvider
+  );
+
+  const filterFn = async(item) => 
+    await providerContract.getAuctionStatus(item) === encodeBytes32String("ACTIVE");
   return fetchAuctionItemsData(ethersProvider, filterFn);
 };
 
@@ -63,7 +103,7 @@ export const fetchMarketItemsData = async (ethersProvider, filterFn) => {
     for (let i = 1; i <= maxItemId; i++) {
       try {
         const item = await providerContract.items(i);
-        if (filterFn(item)) {
+        if (await filterFn(item.itemId)) {
           fetchItems.push(item);
         }
       } catch (error) {

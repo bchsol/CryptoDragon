@@ -2,6 +2,8 @@ client/node_modules
 .deps
 .vscode
 .vscode
+.env
+.gitignore
 build
 db
 test
@@ -12,7 +14,7 @@ client/build
 client/.firebase
 client/.firebaserc
 client/firebase.json
-
+client/.gitignore
 
 truffle/contracts/.deploy
 truffle/contracts/.deps

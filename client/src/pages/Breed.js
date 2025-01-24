@@ -26,6 +26,7 @@ const forwarderAddress = forwarder.AddressSepolia;
 const forwarderAbi = forwarder.Abi;
 
 const dataUrl = 'https://raw.githubusercontent.com/bchsol/CryptoDragon/refs/heads/main/client/Image/';
+
 function Breed() {
   const [isMaleModalOpen, setIsMaleModalOpen] = useState(false);
   const [isFemaleModalOpen, setIsFemaleModalOpen] = useState(false);
@@ -54,12 +55,7 @@ function Breed() {
     try {
       const ethersProvider = new BrowserProvider(walletProvider);
       const nfts = await fetchNfts(ethersProvider, address);
-      const maleIds = nfts.filter(
-        (nft) =>
-          Number(nft.growthInfo.currentStage) == 3 && nft.tokenInfo.gender == 1
-      );
-
-      setMaleNftIds(maleIds);
+      setMaleNftIds(nfts.filter(nft => Number(nft.growthInfo.currentStage) == 3 && nft.tokenInfo.gender == 1));
     } catch (error) {
       console.error("Error fetching male NFTs:", error);
     }
@@ -69,12 +65,7 @@ function Breed() {
     try {
       const ethersProvider = new BrowserProvider(walletProvider);
       const nfts = await fetchNfts(ethersProvider, address);
-      const femaleIds = nfts.filter(
-        (nft) =>
-          Number(nft.growthInfo.currentStage) == 3 && nft.tokenInfo.gender == 2
-      );
-
-      setFemaleNftIds(femaleIds);
+      setFemaleNftIds(nfts.filter(nft => Number(nft.growthInfo.currentStage) == 3 && nft.tokenInfo.gender == 2));
     } catch (error) {
       console.error("Error fetching female NFTs:", error);
     }
@@ -103,20 +94,9 @@ function Breed() {
     }
   };
 
-  const checkHandleMale = (nft) => {
-    if (selectedHusband && selectedHusband.id == nft.id) {
-      setSelectedHusband(null);
-    } else {
-      setSelectedHusband(nft);
-    }
-  };
-  const checkHandleFemale = (nft) => {
-    if (selectedWife && selectedWife.id == nft.id) {
-      setSelectedWife(null);
-    } else {
-      setSelectedWife(nft);
-    }
-  };
+  const checkHandleMale = (nft) => setSelectedHusband(selectedHusband && selectedHusband.id == nft.id ? null : nft);
+  const checkHandleFemale = (nft) => setSelectedWife(selectedWife && selectedWife.id == nft.id ? null : nft);
+
   return (
     <BreedPageContainer>
       <NftSelectionModal
