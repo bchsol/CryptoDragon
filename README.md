@@ -28,9 +28,10 @@ ERC721 및 ERC721URIStorage 표준을 사용하여 고유한 토큰 소유권과
 - **DailyCheck:** 매일 출석체크를 하고 보상을 받을 수 있습니다.
 - **Battle:** 다른 사용자와 배틀을 통해 경쟁할 수 있도록 합니다.
 - **Exploration:** 탐험을 통해 여러 아이템을 얻을 수 있습니다.
-
+  
 ### 시작하기
-1.  **웹에 접속:**: https://nft-project-c95b1.web.app/ 웹에 접속합니다.
+
+1.  **웹에 접속:** https://nft-project-c95b1.web.app/ 웹에 접속합니다.
 2.  **Web3 지갑 연결:** MetaMask 또는 WalletConnect와 같이 Ethereum 및 NFT 상호 작용을 지원하는 지갑을 선택하고 연결합니다.
 3.  **NFT 얻기:** 다음 두 가지 방법 중 하나를 선택할 수 있습니다.
 
@@ -40,9 +41,26 @@ ERC721 및 ERC721URIStorage 표준을 사용하여 고유한 토큰 소유권과
 4.  **드래곤 키우기:** 먹이를 주고 돌봐서 성장 단계를 거쳐 새로운 능력과 외모를 잠금 해제합니다.
 5.  **게임 즐기기:** 드래곤을 교배시키거나 매매하며 수집하고 여러 컨텐츠에 참여합니다.
 
-### 업데이트 예정
+### 예시
 
-- 전체 트랜잭션을 erc2771을 사용한 메타 트랜잭션으로 변경 (완료)
+![Mint](https://github.com/user-attachments/assets/2ec41175-0864-446b-bfb0-1090f27cbeb9)
+**Mint**
+
+![Breed](https://github.com/user-attachments/assets/2d45041a-31c0-4500-beef-3d17bb65dfab)
+**Breed**
+
+![Collection](https://github.com/user-attachments/assets/bc838579-c860-4bc3-96bf-8d3a7b1dcdf2)
+**Collection**
+
+![Info](https://github.com/user-attachments/assets/bb031469-876e-4f63-b682-673517bf3e9a)
+**Info**
+
+![Market](https://github.com/user-attachments/assets/547569a2-e945-4717-b809-59dda25574cd)
+**Market**
+
+![ItemDetail](https://github.com/user-attachments/assets/df0d5898-2a1b-4e39-be05-f25c1cf060a2)
+**ItemDetail**
+
 
 ### 리뷰
 
