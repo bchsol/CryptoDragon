@@ -5,7 +5,6 @@ import { fetchNftData } from "./fetchData";
 
 const marketContractAddress = marketContractData.AddressSepolia;
 const marketAbi = marketContractData.Abi;
-
 const dragonContractAddress = dragonContractData.AddressSepolia;
 
 export const fetchMarketItems = async (ethersProvider) => {
