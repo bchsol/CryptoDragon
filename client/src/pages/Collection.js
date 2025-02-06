@@ -262,8 +262,8 @@ function Collection() {
         parseUnits(price, 18),
       ]);
 
-     
-      const nonce = await getNonce(marketContract, address);
+      const forwarderContract = new Contract(forwarderAddress, forwarderAbi, signer);
+      const nonce = await getNonce(forwarderContract, address);
       const request = createRequest(address, marketContractAddress, callFunction, nonce);
 
       const result = await requestMetaTx(signer, request);
