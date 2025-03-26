@@ -353,37 +353,6 @@ contract TokenBase is ERC721, ERC721URIStorage, Ownable, PersonalityCalculator, 
         return super.supportsInterface(interfaceId);
     }
 
-    /// @notice 성격을 변경하는 함수
-    /// @param tokenId 대상 토큰 ID
-    /// @param newPersonality 새로운 성격 값
-    function changePersonality(uint256 tokenId, Personality newPersonality) external {
-        require(_msgSender() == address(itemContract), "Only item contract can change personality");
-        
-        // confirmedPersonalities에서 허용된 성격인지 확인
-        Personality[] memory allowedPersonalities = confirmedPersonalities[tokenId];
-        require(allowedPersonalities.length > 0, "No confirmed personalities");
-        
-        bool isAllowed = false;
-        for(uint i = 0; i < allowedPersonalities.length; i++) {
-            if(allowedPersonalities[i] == newPersonality) {
-                isAllowed = true;
-                break;
-            }
-        }
-        require(isAllowed, "Personality not in confirmed list");
-        
-        tokens[tokenId].personality = _getPersonalityString(newPersonality);
-    }
-
-    /// @notice 성별을 변경하는 함수
-    /// @param tokenId 대상 토큰 ID
-    function changeGender(uint256 tokenId) external {
-        require(_msgSender() == address(itemContract), "Only item contract can change gender");
-        require(growthStages[tokenId] != GrowthStage.Egg, "Cannot change gender of egg");
-        // 1 -> 2 또는 2 -> 1로 변경
-        tokens[tokenId].gender = tokens[tokenId].gender == 1 ? 2 : 1;
-    }
-
     /// @notice Items 컨트랙트 주소를 설정하는 함수
     function setItemContract(address _itemContract) external onlyOwner {
         itemContract = _itemContract;
