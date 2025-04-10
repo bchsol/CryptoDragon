@@ -16,6 +16,7 @@ import { createWeb3Modal, defaultConfig } from '@web3modal/ethers/react'
 
 const projectId = process.env.REACT_APP_PROJECT_ID;
 
+
 //const networks = [sepolia];
 
 const testnet = {
