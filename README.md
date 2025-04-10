@@ -43,22 +43,22 @@ ERC721 및 ERC721URIStorage 표준을 사용하여 고유한 토큰 소유권과
 
 ### 예시
 
-![Mint](https://github.com/user-attachments/assets/2ec41175-0864-446b-bfb0-1090f27cbeb9)
+![mint2](https://github.com/user-attachments/assets/26cf8db3-0ad5-439e-947e-2d6701f4ec83)
 **Mint**
 
-![Breed](https://github.com/user-attachments/assets/2d45041a-31c0-4500-beef-3d17bb65dfab)
+![breed2-2](https://github.com/user-attachments/assets/af2d630a-9655-4782-b387-870afcce2620)
 **Breed**
 
-![Collection](https://github.com/user-attachments/assets/bc838579-c860-4bc3-96bf-8d3a7b1dcdf2)
+![collection2](https://github.com/user-attachments/assets/31ebae71-482c-4b78-a1e5-53de19ddf93b)
 **Collection**
 
-![Info](https://github.com/user-attachments/assets/bb031469-876e-4f63-b682-673517bf3e9a)
+![collection2-2](https://github.com/user-attachments/assets/8f7c8eb2-1763-42e9-a99e-5fd6bd044337)
 **Info**
 
-![Market](https://github.com/user-attachments/assets/547569a2-e945-4717-b809-59dda25574cd)
+![auction](https://github.com/user-attachments/assets/b4e19f46-dc40-48d3-be47-1f45fd464a16)
 **Market**
 
-![ItemDetail](https://github.com/user-attachments/assets/df0d5898-2a1b-4e39-be05-f25c1cf060a2)
+![itemDetatil](https://github.com/user-attachments/assets/2de7ad3e-8696-4c38-b098-efe8b97964f2)
 **ItemDetail**
 
 
