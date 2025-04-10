@@ -31,7 +31,7 @@ ERC721 및 ERC721URIStorage 표준을 사용하여 고유한 토큰 소유권과
   
 ### 시작하기
 
-1.  **웹에 접속:** https://nft-project-c95b1.web.app/ 웹에 접속합니다.
+1.  **웹에 접속:** https://cryptodragon0.web.app/ 웹에 접속합니다.
 2.  **Web3 지갑 연결:** MetaMask 또는 WalletConnect와 같이 Ethereum 및 NFT 상호 작용을 지원하는 지갑을 선택하고 연결합니다.
 3.  **NFT 얻기:** 다음 두 가지 방법 중 하나를 선택할 수 있습니다.
 
